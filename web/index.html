@@ -15,9 +15,6 @@
 <body>
 <header class="top">
   <div class="brand">Cobertura BiciMAD</div>
-  <div class="seg" id="seg-ind" role="group" aria-label="Indicador">
-    <button data-v="" class="on">Total</button><button data-v="a_">15–64 años</button><button data-v="m_">65+ años</button>
-  </div>
   <div class="seg" id="seg-lvl" role="group" aria-label="Agregación">
     <button data-v="secciones" class="on">Secciones</button><button data-v="barrios">Barrios</button><button data-v="distritos">Distritos</button>
   </div>
@@ -34,8 +31,8 @@
   </div>
   <aside class="panel" id="panel">
     <div class="sum" id="sum"></div>
-    <div class="tabs"><button data-tab="rank" class="on">Ranking</button><button data-tab="tabla">Tabla</button></div>
-    <div class="tools">
+    <div class="tabs"><button data-tab="rank" class="on">Zonas</button><button data-tab="est">Estaciones</button><button data-tab="tabla">Tabla</button></div>
+    <div class="tools" id="zone-tools">
       <div class="seg sm" id="seg-rank"><button data-v="distritos" class="on">Distritos</button><button data-v="barrios">Barrios</button></div>
       <input id="q" type="search" placeholder="Buscar…">
     </div>
@@ -44,7 +41,18 @@
       <button class="btn" id="order">Mejor → peor</button>
     </div>
     <div class="tools" id="tab-tools" hidden><span class="muted" id="tcount"></span><button class="btn" id="csv">↓ CSV</button></div>
+    <div class="tools st-tools" id="st-tools" hidden>
+      <div class="seg sm" id="seg-st"><button data-v="a" class="on">&lt; 250 m</button><button data-v="b">250–500 m</button><button data-v="t">Total &lt; 500 m</button></div>
+      <button class="btn" id="st-order">Más → menos</button>
+    </div>
+    <div class="tools st-tools" id="st-tools2" hidden>
+      <input id="st-q" type="search" placeholder="Buscar estación, distrito o barrio…">
+      <label class="chk"><input type="checkbox" id="st-near"> Solo la base más cercana</label>
+    </div>
+    <div class="st-note muted" id="st-note" hidden></div>
+    <div class="st-sum" id="st-sum" hidden></div>
     <div class="body" id="rank"></div>
+    <div class="body" id="stlist" hidden></div>
     <div class="body" id="tabla" hidden></div>
   </aside>
 </div>

@@ -13,7 +13,8 @@
   };
   var LEVELS = ['secciones', 'barrios', 'distritos'];
   var NAMES = { v: 'Menos de 250 m', a: '250–500 m', r: 'Más de 500 m' };
-  var nf = new Intl.NumberFormat('es-ES');
+  // useGrouping 'always': en es-ES los números de 4 cifras no llevan punto por defecto, lo que queda incoherente en listas.
+  var nf = (function () { try { return new Intl.NumberFormat('es-ES', { useGrouping: 'always' }); } catch (e) { return new Intl.NumberFormat('es-ES'); } })();
   var fmt = function (x) { return x == null || isNaN(x) ? '—' : nf.format(Math.round(x)); };
   var pc = function (x) { return x == null || isNaN(x) ? '—' : x.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %'; };
   var $ = function (s) { return document.querySelector(s); };
@@ -27,11 +28,12 @@
   };
 
   var S = {
-    ind: '', level: 'secciones', theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
-    rl: 'distritos', order: 'best', sort: 'v', q: '', tab: 'rank', tsort: { k: 'nombre', d: 1 }
+    level: 'secciones', theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
+    rl: 'distritos', order: 'best', sort: 'v', q: '', tab: 'rank', tsort: { k: 'nombre', d: 1 },
+    sk: 'a', sord: 'desc', sq: '', near: false
   };
-  var meta = {}, agg = null, geo = {}, hasPM = false, map, popup;
-  var val = function (p, k) { var x = p[S.ind + k]; return x == null ? null : Number(x); };
+  var meta = {}, agg = null, geo = {}, bases = null, hasPM = false, map, popup;
+  var val = function (p, k) { var x = p[k]; return x == null || x === '' ? null : Number(x); };
 
   // ---------- tema ----------
   function applyTheme() {
@@ -53,7 +55,7 @@
     return [
       '<h2>Qué muestra este mapa</h2><p>Cuánta población de Madrid vive cerca de una base de BiciMAD, midiendo <b>andando por la red peatonal real</b> hasta la base más cercana.</p><ul class="lv"><li><i style="background:' + COL.v + '"></i><b>Verde</b>: a menos de 250 m</li><li><i style="background:' + COL.a + '"></i><b>Amarillo</b>: de 250 a 500 m</li><li><i style="background:' + COL.r + '"></i><b>Rojo</b>: a más de 500 m</li></ul>',
       '<h2>Método</h2><p>La población del padrón/censo por sección se reparte entre los edificios residenciales del Catastro según su número de viviendas.</p><p>La distancia se calcula por la red peatonal de OpenStreetMap con un Dijkstra multiorigen desde todas las bases.</p><p class="muted">Datos generados el ' + esc(gen) + '.</p>',
-      '<h2>Cómo usarlo</h2><ul><li>Elige el <b>indicador</b> (total, 15–64 o 65+ años) y la <b>agregación</b> en la barra superior.</li><li>El <b>ranking</b> ordena distritos y barrios; pasa el ratón para resaltarlos y púlsalos para acercarte.</li><li>Acerca el mapa y <b>pulsa un edificio</b> para ver su población y su distancia a la base.</li></ul>',
+      '<h2>Cómo usarlo</h2><ul><li>Elige la <b>agregación</b> (secciones, barrios o distritos) en la barra superior.</li><li><b>Zonas</b> ordena distritos y barrios; <b>Estaciones</b> ordena las bases por población residente a menos de 250 m y a 250–500 m. Pasa el ratón para resaltar y púlsalo para acercarte.</li><li>Acerca el mapa y <b>pulsa un edificio</b> para ver su población y su distancia a la base.</li></ul>',
       '<h2>Fuentes</h2><ul class="src">' + (meta.fuentes || []).map(function (f) {
         return '<li><a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.nombre) + '</a>' + (f.referencia ? ' · ref. ' + esc(f.referencia) : '') + (f.fecha_descarga ? ' · descargado ' + esc(f.fecha_descarga) : '') + '</li>';
       }).join('') + '</ul>'
@@ -88,9 +90,9 @@
   }
 
   // ---------- mapa ----------
-  function colorExpr(prefix) {
-    var f = prefix + 'pct_v';
-    return ['case', ['<=', ['to-number', ['get', prefix + 'pob'], 0], 0], 'rgba(0,0,0,0)', ['has', f], ['step', ['to-number', ['get', f], 0], RAMP[0], 20, RAMP[1], 40, RAMP[2], 60, RAMP[3], 80, RAMP[4]], S.theme === 'dark' ? '#3a3d44' : '#d5d8de'];
+  function colorExpr() {
+    var f = 'pct_v';
+    return ['case', ['<=', ['to-number', ['get', 'pob'], 0], 0], 'rgba(0,0,0,0)', ['has', f], ['step', ['to-number', ['get', f], 0], RAMP[0], 20, RAMP[1], 40, RAMP[2], 60, RAMP[3], 80, RAMP[4]], S.theme === 'dark' ? '#3a3d44' : '#d5d8de'];
   }
   function bColor() {
     var k = ['coalesce', ['get', 'k'], 0];
@@ -98,6 +100,7 @@
     return ['match', ['get', 'n'], 0, m(0), 1, m(1), m(2)];
   }
   var cssv = function (n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); };
+  var baseFilter = function (id) { return ['==', ['to-string', ['get', 'base_id']], String(id)]; };
   var hlFilter = function (cod) { return ['==', ['to-string', ['get', 'cod']], String(cod)]; };
 
   // Idempotentes: setStyle encadenados (cambios de tema rápidos) pueden disparar style.load varias veces.
@@ -111,7 +114,7 @@
       addSrc(n, { type: 'geojson', data: geo[n] });
       var vis = n === S.level ? 'visible' : 'none';
       addLyr({ id: 'fill-' + n, type: 'fill', source: n, layout: { visibility: vis },
-        paint: { 'fill-color': colorExpr(S.ind), 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.8, 13, 0.72, 15, 0.12] } });
+        paint: { 'fill-color': colorExpr(), 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.8, 13, 0.72, 15, 0.12] } });
       addLyr({ id: 'line-' + n, type: 'line', source: n, layout: { visibility: vis },
         paint: { 'line-color': dark ? '#ffffff' : '#222222', 'line-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.25, 15, 0.12], 'line-width': n === 'secciones' ? 0.3 : 0.8 } });
     });
@@ -128,7 +131,10 @@
       addLyr({ id: 'hl-' + n, type: 'line', source: n, filter: hlFilter('__none__'),
         paint: { 'line-color': cssv('--accent-hover') || '#5AA8FF', 'line-width': 3 } });
     });
-    addSrc('bases', { type: 'geojson', data: 'data/bases.geojson' });
+    addSrc('bases', { type: 'geojson', data: bases || 'data/bases.geojson' });
+    addLyr({ id: 'bases-hl', type: 'circle', source: 'bases', filter: baseFilter('__none__'),
+      paint: { 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': cssv('--accent-hover') || '#5AA8FF', 'circle-stroke-width': 3,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 8, 16, 14] } });
     addLyr({ id: 'bases', type: 'circle', source: 'bases',
       paint: { 'circle-color': cssv('--accent') || '#2D8EFF', 'circle-stroke-color': cssv('--bg-panel') || '#1A1C20', 'circle-stroke-width': 1.5,
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 16, 6] } });
@@ -141,13 +147,6 @@
     $$('#seg-lvl button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === n); });
     renderLegend();
   }
-  function setInd(v) {
-    S.ind = v;
-    $$('#seg-ind button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); });
-    LEVELS.forEach(function (l) { if (map && map.getLayer('fill-' + l)) map.setPaintProperty('fill-' + l, 'fill-color', colorExpr(v)); });
-    renderAll();
-  }
-  $('#seg-ind').onclick = function (e) { if (e.target.dataset.v != null) setInd(e.target.dataset.v); };
   $('#seg-lvl').onclick = function (e) { if (e.target.dataset.v) setLevel(e.target.dataset.v); };
 
   function popupHtml(p, title, sub) {
@@ -170,7 +169,7 @@
   function onClick(e) {
     var has = function (id) { return map.getLayer(id); };
     var f = has('bases') && map.queryRenderedFeatures(e.point, { layers: ['bases'] })[0];
-    if (f) return showPopup(f.geometry.coordinates, '<div class="pop"><h3>' + esc(f.properties.nombre) + '</h3>Base de BiciMAD</div>');
+    if (f) return showPopup(f.geometry.coordinates, stationPopup(f.properties));
     f = has('edif-fill') && map.queryRenderedFeatures(e.point, { layers: ['edif-fill'] })[0];
     if (f) {
       var p = f.properties, d = (p.d == null || p.d === 'null' || p.d === '') ? null : Number(p.d), n = Number(p.n);
@@ -211,17 +210,13 @@
   function cityProps() {
     if (agg && agg.ciudad) return agg.ciudad;
     var t = { pob: 0, pob_v: 0, pob_a: 0, pob_r: 0 };
-    ['', 'a_', 'm_'].forEach(function (pr) {
-      var s = { pob: 0, pob_v: 0, pob_a: 0, pob_r: 0 };
-      ((geo.distritos || {}).features || []).forEach(function (f) { for (var k in s) s[k] += Number(f.properties[pr + k] || 0); });
-      for (var k in s) t[pr + k] = s[k];
-      t[pr + 'pct_v'] = s.pob ? 100 * s.pob_v / s.pob : 0; t[pr + 'pct_a'] = s.pob ? 100 * s.pob_a / s.pob : 0; t[pr + 'pct_r'] = s.pob ? 100 * s.pob_r / s.pob : 0;
-    });
+    ((geo.distritos || {}).features || []).forEach(function (f) { for (var k in t) t[k] += Number(f.properties[k] || 0); });
+    t.pct_v = t.pob ? 100 * t.pob_v / t.pob : 0; t.pct_a = t.pob ? 100 * t.pob_a / t.pob : 0; t.pct_r = t.pob ? 100 * t.pob_r / t.pob : 0;
     return t;
   }
   function renderSum() {
-    var c = cityProps(), lab = { '': 'Población total', a_: 'Población de 15–64 años', m_: 'Población de 65+ años' }[S.ind];
-    if (val(c, 'pob') == null) { $('#sum').innerHTML = '<div class="lb">' + lab + '</div><div class="muted">Datos no disponibles para este indicador.</div>'; return; }
+    var c = cityProps(), lab = 'Población total';
+    if (val(c, 'pob') == null) { $('#sum').innerHTML = '<div class="lb">' + lab + '</div><div class="muted">Datos no disponibles.</div>'; return; }
     $('#sum').innerHTML = '<div class="lb">' + lab + ' · Madrid</div><div class="big">' + fmt(val(c, 'pob')) + '</div>' +
       stack(c, 1) + '<div class="kp">' + ['v', 'a', 'r'].map(function (k) {
         return '<div style="border-color:' + COL[k] + '">' + NAMES[k] + '<b>' + pc(val(c, 'pct_' + k)) + '</b>' + fmt(val(c, 'pob_' + k)) + ' hab.</div>';
@@ -242,7 +237,7 @@
     var c = cityProps(), avg = val(c, 'pct_v');
     var rs = rows().filter(function (p) { return val(p, 'pob') != null; });
     rs.sort(function (a, b) { return S.order === 'best' ? score(b) - score(a) : score(a) - score(b); });
-    if (!rs.length) { $('#rank').innerHTML = '<div class="empty">Sin datos para este indicador.</div>'; return; }
+    if (!rs.length) { $('#rank').innerHTML = '<div class="empty">Sin datos.</div>'; return; }
     $('#rank').innerHTML = rs.map(function (p, i) {
       var bar = ['v', 'a', 'r'].map(function (k) {
         var w = val(p, 'pct_' + k) || 0;
@@ -277,14 +272,85 @@
     if (th) { var k = th.dataset.k; S.tsort = { k: k, d: S.tsort.k === k ? -S.tsort.d : (k === 'nombre' ? 1 : -1) }; return renderTable(); }
     var tr = e.target.closest('tbody tr'); if (tr) zoomTo(S.rl, tr.dataset.cod);
   });
-  function renderAll() { renderSum(); renderRank(); renderTable(); }
+  // ---------- estaciones ----------
+  var num = function (x) { return x == null || x === '' || isNaN(x) ? null : Number(x); };
+  var fa = function () { return S.near ? 'p250_cercana' : 'p250'; };
+  var fb = function () { return S.near ? 'p500_cercana' : 'p500'; };
+  var stKey = function (p) {
+    var a = num(p[fa()]), b = num(p[fb()]);
+    if (S.sk === 'a') return a;
+    if (S.sk === 'b') return b;
+    return a == null && b == null ? null : (a || 0) + (b || 0);
+  };
+  function baseList() { return bases ? bases.features.map(function (f) { return f.properties; }) : []; }
+  function renderStations() {
+    var all = baseList(), a = fa(), b = fb(), q = S.sq.trim().toLowerCase();
+    $('#st-note').textContent = S.near ? 'Cada persona cuenta solo en su base más cercana' : 'Personas que viven a menos de 250 m o entre 250 y 500 m andando de cada estación (una persona puede contar en varias)';
+    var vals = all.map(function (p) { return num(p[a]); }).filter(function (x) { return x != null; }).sort(function (x, y) { return x - y; });
+    var med = vals.length ? (vals[(vals.length - 1) >> 1] + vals[vals.length >> 1]) / 2 : null;
+    var zeros = vals.filter(function (x) { return x === 0; }).length;
+    $('#st-sum').innerHTML = '<div><b>' + fmt(all.length) + '</b>estaciones</div><div><b>' + fmt(med) + '</b>mediana &lt; 250 m</div><div><b>' + (vals.length ? fmt(zeros) : '—') + '</b>con 0 a &lt; 250 m</div>';
+    var max = 0; all.forEach(function (p) { max = Math.max(max, (num(p[a]) || 0) + (num(p[b]) || 0)); });
+    var rs = all.filter(function (p) {
+      return !q || [p.nombre, p.distrito, p.barrio].some(function (x) { return String(x || '').toLowerCase().indexOf(q) >= 0; });
+    });
+    var d = S.sord === 'desc' ? -1 : 1;
+    rs = rs.map(function (p) { var k = stKey(p); return { p: p, k: k == null ? -1 : k }; })
+      .sort(function (x, y) { return x.k === y.k ? 0 : d * (x.k - y.k); }).map(function (x) { return x.p; });
+    if (!rs.length) { $('#stlist').innerHTML = '<div class="empty">Sin estaciones.</div>'; return; }
+    $('#stlist').innerHTML = rs.map(function (p, i) {
+      var va = num(p[a]), vb = num(p[b]), wa = max && va ? 100 * va / max : 0, wb = max && vb ? 100 * vb / max : 0;
+      return '<div class="rk es" data-id="' + esc(p.base_id) + '"><span class="n">' + (i + 1) + '</span><span class="nm"><b>' + esc(p.nombre) + '</b><small>' +
+        (p.distrito ? esc(p.distrito) + (p.barrio ? ' · ' + esc(p.barrio) : '') : 'Fuera del municipio') + '</small></span>' +
+        '<span class="pp"><i class="dt v"></i>' + fmt(va) + ' · <i class="dt a"></i>' + fmt(vb) + '</span>' +
+        '<div class="rbar"><div class="v" style="width:' + wa + '%"></div><div class="a" style="width:' + wb + '%"></div></div></div>';
+    }).join('');
+  }
+  function stationPopup(p) {
+    var all = baseList().filter(function (x) { return num(x.p250) != null; }), pos = '';
+    if (num(p.p250) != null) {
+      var n = 1; all.forEach(function (x) { if (num(x.p250) > num(p.p250)) n++; });
+      pos = '<div class="sm">Posición por población a &lt; 250 m: <b>nº ' + n + ' de ' + all.length + '</b></div>';
+    }
+    return '<div class="pop"><h3>' + esc(p.nombre) + '</h3><div class="muted">' + (p.distrito ? esc(p.distrito) + (p.barrio ? ' · ' + esc(p.barrio) : '') : 'Fuera del municipio') + '</div>' +
+      '<div><span style="color:' + COL.v + '">●</span> &lt; 250 m: <b>' + fmt(num(p.p250)) + '</b> personas</div>' +
+      '<div><span style="color:' + COL.a + '">●</span> 250–500 m: <b>' + fmt(num(p.p500)) + '</b> personas</div>' + pos +
+      '<div class="sm muted">como base más cercana: ' + fmt(num(p.p250_cercana)) + ' / ' + fmt(num(p.p500_cercana)) + '</div></div>';
+  }
+  function hlBase(id) { if (map && map.getLayer('bases-hl')) map.setFilter('bases-hl', baseFilter(id == null ? '__none__' : id)); }
+  function baseById(id) { return bases && bases.features.filter(function (f) { return String(f.properties.base_id) === String(id); })[0]; }
+  $('#stlist').addEventListener('mouseover', function (e) { var r = e.target.closest('.rk'); hlBase(r ? r.dataset.id : null); });
+  $('#stlist').addEventListener('mouseleave', function () { hlBase(null); });
+  $('#stlist').addEventListener('click', function (e) {
+    var r = e.target.closest('.rk'), f = r && baseById(r.dataset.id);
+    if (!f || !map) return;
+    map.flyTo({ center: f.geometry.coordinates, zoom: 16, duration: 700 });
+    showPopup(f.geometry.coordinates, stationPopup(f.properties));
+  });
+  $('#seg-st').onclick = function (e) {
+    if (!e.target.dataset.v) return;
+    S.sk = e.target.dataset.v;
+    $$('#seg-st button').forEach(function (x) { x.classList.toggle('on', x === e.target); });
+    renderStations();
+  };
+  $('#st-order').onclick = function () {
+    S.sord = S.sord === 'desc' ? 'asc' : 'desc';
+    this.textContent = S.sord === 'desc' ? 'Más → menos' : 'Menos → más'; renderStations();
+  };
+  $('#st-q').oninput = function () { S.sq = this.value; renderStations(); };
+  $('#st-near').onchange = function () { S.near = this.checked; renderStations(); };
+
+  function renderAll() { renderSum(); renderRank(); renderTable(); renderStations(); }
 
   $$('.tabs button').forEach(function (b) {
     b.onclick = function () {
       S.tab = b.dataset.tab;
       $$('.tabs button').forEach(function (x) { x.classList.toggle('on', x === b); });
-      $('#rank').hidden = S.tab !== 'rank'; $('#tabla').hidden = S.tab !== 'tabla';
-      $('#rank-tools').hidden = S.tab !== 'rank'; $('#tab-tools').hidden = S.tab !== 'tabla';
+      var t = S.tab;
+      $('#rank').hidden = t !== 'rank'; $('#tabla').hidden = t !== 'tabla'; $('#stlist').hidden = t !== 'est';
+      $('#rank-tools').hidden = t !== 'rank'; $('#tab-tools').hidden = t !== 'tabla'; $('#zone-tools').hidden = t === 'est';
+      ['#st-tools', '#st-tools2', '#st-note', '#st-sum'].forEach(function (i) { $(i).hidden = t !== 'est'; });
+      if (t !== 'est') hlBase(null);
     };
   });
   $('#seg-rank').onclick = function (e) {
@@ -308,9 +374,9 @@
   // ---------- CSV ----------
   $('#csv').onclick = function () {
     if (!agg) return;
-    var ind = [['total', ''], ['15-64', 'a_'], ['65+', 'm_']], f = ['pob', 'pob_v', 'pob_a', 'pob_r', 'pct_v', 'pct_a', 'pct_r'];
+    var f = ['pob', 'pob_v', 'pob_a', 'pob_r', 'pct_v', 'pct_a', 'pct_r'];
     var head = ['nivel', 'cod', 'nombre', 'distrito'];
-    ind.forEach(function (i) { f.forEach(function (k) { head.push(i[0] + '_' + k); }); });
+    f.forEach(function (k) { head.push(k); });
     var cell = function (v) {
       if (v == null) return '';
       if (typeof v === 'number') return String(v).replace('.', ',');
@@ -320,11 +386,18 @@
     [['distrito', agg.distritos], ['barrio', agg.barrios]].forEach(function (g) {
       (g[1] || []).forEach(function (r) {
         var row = [g[0], r.cod, r.nombre, r.distrito || ''];
-        ind.forEach(function (i) { f.forEach(function (k) { row.push(r[i[1] + k]); }); });
+        f.forEach(function (k) { row.push(r[k]); });
         lines.push(row.map(cell).join(';'));
       });
     });
-    var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    if (bases) {
+      lines.push('', ['base_id', 'nombre', 'distrito', 'barrio', 'p250', 'p500', 'p250_cercana', 'p500_cercana'].join(';'));
+      bases.features.forEach(function (b) {
+        var p = b.properties;
+        lines.push([p.base_id, p.nombre, p.distrito, p.barrio, p.p250, p.p500, p.p250_cercana, p.p500_cercana].map(cell).join(';'));
+      });
+    }
+    var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'cobertura_bicimad.csv';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   };
@@ -343,6 +416,7 @@
   var pr = [
     getJSON('metadata.json').then(function (m) { meta = m; }).catch(function () {}),
     getJSON('agregados.json').then(function (a) { agg = a; }).catch(function () {}),
+    getJSON('bases.geojson').then(function (g) { bases = g; }).catch(function () {}),
     fetch('data/edificios.pmtiles', { method: 'HEAD' }).then(function (r) { hasPM = r.ok && !!window.pmtiles; }).catch(function () {})
   ].concat(LEVELS.map(function (n) { return getJSON(n + '.geojson').then(function (g) { geo[n] = g; }).catch(function () {}); }));
   Promise.all(pr).then(function () {

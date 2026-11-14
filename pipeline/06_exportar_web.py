@@ -69,7 +69,7 @@ with open(out, "wb") as fh:
 print("pmtiles", round(os.path.getsize(out) / 1e6, 2), "MB", ntiles, "tiles")
 if os.path.exists(W + "edificios.geojson"): os.remove(W + "edificios.geojson")
 dnames = {d["cod"]: d["nombre"] for d in ag["distritos"]}
-FL = [p + k for p in ("", "a_", "m_") for k in ("pob", "pob_v", "pob_a", "pob_r", "pct_v", "pct_a", "pct_r")]
+FL = [p + k for p in ("",) for k in ("pob", "pob_v", "pob_a", "pob_r", "pct_v", "pct_a", "pct_r")]
 def poly(layer, key, rows, tol, extra=()):
     g = gpd.read_file(P + layer + ".gpkg")
     g["cod"] = g[key]
@@ -85,8 +85,9 @@ def poly(layer, key, rows, tol, extra=()):
 dump(poly("secciones", "cusec", ag["secciones"], 5), W + "secciones.geojson")
 dump(poly("barrios", "cod_barrio", ag["barrios"], 10, ("cod_distrito", "distrito")), W + "barrios.geojson")
 dump(poly("distritos", "cod_distrito", ag["distritos"], 10), W + "distritos.geojson")
-dump(gpd.read_file(P + "bases.gpkg", layer="bases")[["base_id", "nombre", "geometry"]], W + "bases.geojson")
-json.dump({k: ag[k] for k in ("ciudad", "distritos", "barrios")}, open(W + "agregados.json", "w", encoding="utf-8"), separators=(",", ":"), ensure_ascii=False)
+dump(gpd.read_file(P + "bases.gpkg", layer="bases")[["base_id", "nombre", "geometry"]], W + "bases.geojson")  # solo base_id/nombre; 07_ranking_bases.py (tras 06) lo reescribe con el ranking
+strip = lambda o: {k: v for k, v in o.items() if not k.startswith(("a_", "m_"))}
+json.dump({"ciudad": strip(ag["ciudad"]), "distritos": [strip(x) for x in ag["distritos"]], "barrios": [strip(x) for x in ag["barrios"]]}, open(W + "agregados.json", "w", encoding="utf-8"), separators=(",", ":"), ensure_ascii=False)
 m = lambda f: json.load(open(P + f, encoding="utf-8"))
 bl, ine, cat = m("meta_bicimad_limites.json"), m("meta_ine.json"), m("meta_catastro.json")
 try: osm = m("meta_osm.json")

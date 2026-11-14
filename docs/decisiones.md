@@ -27,3 +27,6 @@ Formato: una línea por decisión (qué y por qué).
 - Grupos de edad: 15–64 = suma de quinquenios 15–19…60–64; 65+ = 65–69…100 y más; se reparten a edificios con los mismos pesos y reglas que la población total.
 - Edificios como PMTiles (MVT, capa `edificios`, z12–16) con huellas reales de Catastro, generado con mapbox-vector-tile + pmtiles en Python (sin tippecanoe); z12–13 simplificados (2 m / 1 m) y sin edificios <30 m².
 - Clase de sombreado `k` de edificio = quintiles de población por edificio redondeados a enteros (cortes 3, 8, 22, 43), guardados en metadata.json.
+- Ranking de estaciones (`pipeline/07_ranking_bases.py`): para cada estación se cuenta toda la población que vive a < 250 m y a 250–500 m andando de ella, aunque tenga otra más cercana (una persona puede contar en varias) — es la lectura literal de "vive a menos de X m de esta base"; la web ofrece además el recuento solo como base más cercana (`p250_cercana`, `p500_cercana`).
+- 07 se ejecuta después de 06 porque 06 reescribe `bases.geojson` sin los campos del ranking — orden fijado en `run_all.py`.
+- Se quita de la web el selector de grupo de población (15–64 / 65+) y se dejan de exportar los campos `a_*`/`m_*` — no aportaba (los porcentajes apenas difieren del total); siguen calculados en `data/processed/`.

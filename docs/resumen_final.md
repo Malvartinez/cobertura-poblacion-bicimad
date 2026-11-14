@@ -33,3 +33,18 @@ Grupos: 15–64 años = 2.362.728 hab. (806.439 en verde); 65+ = 701.954 hab. (2
 - 12 bases enganchadas a más de 150 m de la red; 1.973 edificios sin base a menos de 1.500 m (rojo).
 - Las secciones sin población (parques, Retiro…) se pintan en rojo (0 % verde) en la coropleta.
 - `run_all.py` no se ha ejecutado de principio a fin (los scripts sí, uno a uno).
+
+## Ranking de estaciones
+
+Población que vive a menos de 250 m andando de cada estación (una persona puede contar en varias):
+
+| Estación | Distrito | < 250 m | 250–500 m |
+|---|---|---:|---:|
+| 53 - Metro Lavapiés | Centro | 8.844 | 20.246 |
+| 79 - Metro Menéndez Pelayo | Retiro | 7.413 | 14.404 |
+| 418 - Puerto de Arlabán - San Diego | Puente de Vallecas | 6.419 | 14.928 |
+| 226 - Sierra Toledana - Camino de Valderribas | Puente de Vallecas | 6.384 | 15.671 |
+| 245 - Galileo - Donoso Cortés | Chamberí | 6.164 | 16.243 |
+
+- Mediana: 1.665 personas a < 250 m por estación. 69 estaciones no tienen población residente a < 250 m (44 tampoco a < 500 m).
+- Comprobaciones: la distancia mínima por estación coincide con la de 04 en los 88.176 edificios comparados (0 discrepancias); la población a < 250 m de alguna estación = 1.178.044 = total verde de la ciudad.
