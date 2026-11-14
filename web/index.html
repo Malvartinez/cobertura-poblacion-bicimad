@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cobertura de BiciMAD</title>
+<meta name="description" content="Población de Madrid que vive a menos de 250 m, 250–500 m o más de 500 m andando de una base de BiciMAD.">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><h1>Cobertura de BiciMAD</h1><p>Población a pie de una base</p></div>
+  <nav>
+    <button class="tab active" data-tab="mapa">Mapa</button>
+    <button class="tab" data-tab="datos">Datos</button>
+    <a href="#" id="about-link">Acerca de</a>
+  </nav>
+</header>
+
+<main>
+  <section id="tab-mapa" class="panel active">
+    <div id="map"></div>
+    <div id="loading" class="loading" hidden>Cargando edificios…</div>
+    <aside class="ctrl" id="ctrl">
+      <label>Agregación
+        <select id="layer-sel">
+          <option value="secciones">Secciones</option>
+          <option value="barrios">Barrios</option>
+          <option value="distritos">Distritos</option>
+        </select>
+      </label>
+      <h2>Distancia andando a la base más cercana</h2>
+      <ul class="lv">
+        <li><i style="background:#1a9850"></i>&lt; 250 m · muy buena</li>
+        <li><i style="background:#f6c600"></i>250–500 m · regular</li>
+        <li><i style="background:#d73027"></i>&gt; 500 m · sin cobertura</li>
+        <li><i class="st"></i>Base de BiciMAD</li>
+      </ul>
+      <h2>% población a &lt; 250 m</h2>
+      <div class="scale" id="scale"></div>
+      <div class="scale-l"><span>0 %</span><span>100 %</span></div>
+      <p class="hint" id="hint">Acerca el mapa (zoom 14+) para ver los edificios.</p>
+    </aside>
+  </section>
+
+  <section id="tab-datos" class="panel">
+    <div class="wrap">
+      <h2>Madrid: población según distancia andando a una base</h2>
+      <div id="city"></div>
+      <div class="row">
+        <h2>Por distrito</h2>
+        <button id="csv" class="btn">Descargar CSV</button>
+      </div>
+      <div class="tw"><table id="t-dist"></table></div>
+      <div class="row"><h2>Por barrio</h2>
+        <input id="q" type="search" placeholder="Buscar barrio o distrito…"></div>
+      <div class="tw"><table id="t-bar"></table></div>
+    </div>
+  </section>
+</main>
+
+<footer>Datos generados el <span id="gen">—</span>. Los niveles se calculan con la distancia por la red peatonal.</footer>
+
+<div id="modal" class="modal" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="m-t">
+    <h2 id="m-t">Cobertura de BiciMAD</h2>
+    <p>Este mapa muestra cuántas personas de la ciudad de Madrid viven cerca de una base de BiciMAD, medido caminando por la red peatonal real.</p>
+    <ul class="lv">
+      <li><i style="background:#1a9850"></i><b>Muy buena</b>: menos de 250 m</li>
+      <li><i style="background:#f6c600"></i><b>Regular</b>: de 250 a 500 m</li>
+      <li><i style="background:#d73027"></i><b>Sin cobertura</b>: más de 500 m</li>
+    </ul>
+    <p><b>Método.</b> La población del padrón por sección censal se reparte entre los edificios residenciales del Catastro según su número de viviendas. La distancia se calcula andando por la red peatonal de OpenStreetMap hasta la base más cercana.</p>
+    <p><b>Fuentes</b></p>
+    <ul id="fuentes" class="src"></ul>
+    <button id="go" class="btn primary">Explorar el mapa</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
