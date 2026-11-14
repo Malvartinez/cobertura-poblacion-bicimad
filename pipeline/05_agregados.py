@@ -1,14 +1,15 @@
 import geopandas as gpd, pandas as pd, json
 P = "data/processed/"
 b = pd.DataFrame(pd.read_parquet(P + "edificios_distancias.parquet").drop(columns="geometry"))
-b["pob"] = b.poblacion
-b["pob_v"] = b.poblacion.where(b.nivel == 0, 0.0)
-b["pob_a"] = b.poblacion.where(b.nivel == 1, 0.0)
-b["pob_r"] = b.poblacion.where(b.nivel == 2, 0.0)
-C = ["pob", "pob_v", "pob_a", "pob_r"]
+C = []
+for pre, src in (("", "poblacion"), ("a_", "pob_15_64"), ("m_", "pob_65")):
+    b[pre + "pob"] = b[src]
+    for k, nv in zip("var", range(3)): b[pre + "pob_" + k] = b[src].where(b.nivel == nv, 0.0)
+    C += [pre + s for s in ("pob", "pob_v", "pob_a", "pob_r")]
 def fin(d):
     o = {k: int(round(d[k])) for k in C}
-    for k in "var": o["pct_" + k] = round(100 * d["pob_" + k] / d["pob"], 1) if d["pob"] > 0 else 0.0
+    for pre in ("", "a_", "m_"):
+        for k in "var": o[pre + "pct_" + k] = round(100 * d[pre + "pob_" + k] / d[pre + "pob"], 1) if d[pre + "pob"] > 0 else 0.0
     return o
 z = pd.Series({k: 0.0 for k in C})
 gd, gb, gs = (b.groupby(k)[C].sum() for k in ("cod_distrito", "cod_barrio", "cusec"))

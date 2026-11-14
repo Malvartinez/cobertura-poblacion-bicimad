@@ -43,20 +43,24 @@ for c in sin_res:
     pass
 d["n_viviendas"]=d.n_viviendas.astype(int)
 ts=d.groupby("cusec").n_viviendas.transform("sum")
-d["poblacion"]=0.0
 ok=ts>0
-d.loc[ok,"poblacion"]=d.cusec.map(pobd)[ok]*d.n_viviendas[ok]/ts[ok]
 m=d.asignacion=="centroide_seccion"
-d.loc[m,"poblacion"]=d.cusec[m].map(pobd)
+for col,src in [("poblacion","poblacion"),("pob_15_64","pob_15_64"),("pob_65","pob_65")]:
+    ps=pob.set_index("cusec")[src]
+    d[col]=0.0
+    d.loc[ok,col]=d.cusec.map(ps)[ok]*d.n_viviendas[ok]/ts[ok]
+    d.loc[m,col]=d.cusec[m].map(ps)
+    sx=d.groupby("cusec")[col].sum().reindex(ps.index).fillna(0)
+    assert np.allclose(sx,ps,atol=1e-6), col
 # checks
 s=d.groupby("cusec").poblacion.sum().reindex(pobd.index).fillna(0)
 bad=s[~np.isclose(s,pobd,rtol=1e-6,atol=1e-6)]
 assert bad.empty, f"secciones no cuadran: {bad.head()}"
-assert abs(d.poblacion.sum()-3414246)<=1, d.poblacion.sum()
-assert pobd.sum()==3414246
+assert abs(d.poblacion.sum()-3477497)<=1, d.poblacion.sum()
+assert pobd.sum()==3477497
 z=pobd[pobd==0].index
 print("secciones pob=0 con residenciales:",len(set(z)&con_res))
-d=d[["edif_id","n_viviendas","cusec","cod_barrio","cod_distrito","asignacion","poblacion","geometry"]]
+d=d[["edif_id","n_viviendas","cusec","cod_barrio","cod_distrito","asignacion","poblacion","pob_15_64","pob_65","geometry"]]
 d.to_parquet(P+"edificios_poblacion.parquet")
 print("edificios:",len(d),"poblacion:",d.poblacion.sum(), d.asignacion.value_counts().to_dict())
 print("sin barrio:",int(d.cod_barrio.isna().sum()))
