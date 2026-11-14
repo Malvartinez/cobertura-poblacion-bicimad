@@ -27,6 +27,7 @@ a{color:var(--accent)}a:hover{color:var(--accent-hover)}
 .floating{position:absolute;top:10px;right:10px;z-index:3}
 .card{background:var(--card);border:1px solid var(--b2);border-radius:var(--r2);backdrop-filter:blur(6px);box-shadow:0 4px 20px rgba(0,0,0,.25)}
 .legend{position:absolute;left:10px;bottom:24px;padding:8px 10px;font-size:11px;width:222px;z-index:2}
+.legend .lg-tg{display:none}
 .legend h4{margin:0 0 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--tx2)}
 .legend h4:not(:first-child){margin-top:8px}
 .ramp{display:flex;height:8px;border-radius:3px;overflow:hidden}.ramp span{flex:1}
@@ -94,7 +95,13 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--bg-surface-2)}
   .panel{width:100%;height:45%;border-left:0;border-top:1px solid var(--b2);transition:height var(--t2)}
   .panel.closed{width:100%;height:0;border-top:0}
   .panel>*{min-width:0}
-  .legend{width:190px;bottom:20px;font-size:10px}
+  .legend{width:190px;bottom:auto;top:10px;font-size:10px;padding:6px 8px}
+  .legend:not(.open){width:auto}
+  .legend:not(.open)>*:not(.lg-tg){display:none}
+  .legend .lg-tg{display:block;border:0;background:none;color:var(--tx);font:inherit;font-weight:600;font-size:11px;padding:0;cursor:pointer;margin-bottom:4px}
+  .legend:not(.open) .lg-tg{margin:0}
+  .top{gap:8px;padding:0 8px}
+  .seg button{padding:4px 7px}
   .sum .big{font-size:20px}
   .brand{font-size:13px}.lnk{display:none}
 }

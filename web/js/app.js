@@ -72,6 +72,7 @@
   $('#modal').addEventListener('click', function (e) { if (e.target === this) closeOb(); });
   $('#about').onclick = function (e) { e.preventDefault(); openOb(); };
   $('#help').onclick = openOb;
+  $('#legend').addEventListener('click', function (e) { if (e.target.closest('.lg-tg')) this.classList.toggle('open'); });
 
   // ---------- leyenda ----------
   function renderLegend() {
@@ -80,7 +81,7 @@
     var rows = [0, 1, 2].map(function (n) {
       return '<div class="brow"><b>' + ['&lt; 250 m', '250–500', '&gt; 500 m'][n] + '</b><div class="sw">' + SHADE[n].map(function (x) { return '<i style="background:' + x + '"></i>'; }).join('') + '</div></div>';
     }).join('');
-    $('#legend').innerHTML = '<h4>% población a &lt; 250 m (' + (S.level) + ')</h4><div class="ramp">' +
+    $('#legend').innerHTML = '<button class="lg-tg" type="button" aria-label="Mostrar u ocultar leyenda">Leyenda</button><h4>% población a &lt; 250 m (' + (S.level) + ')</h4><div class="ramp">' +
       RAMP.map(function (x) { return '<span style="background:' + x + '"></span>'; }).join('') + '</div><div class="rl"><span>0 %</span><span>100 %</span></div>' +
       '<h4>Edificios (zoom 14+)</h4>' + rows + '<div class="rl" style="margin-left:52px;font-size:9px"><span>menos → más población por edificio</span></div>' + bk +
       '<div class="st"><i></i>Base de BiciMAD</div>';
@@ -89,7 +90,7 @@
   // ---------- mapa ----------
   function colorExpr(prefix) {
     var f = prefix + 'pct_v';
-    return ['case', ['has', f], ['step', ['to-number', ['get', f], 0], RAMP[0], 20, RAMP[1], 40, RAMP[2], 60, RAMP[3], 80, RAMP[4]], S.theme === 'dark' ? '#3a3d44' : '#d5d8de'];
+    return ['case', ['<=', ['to-number', ['get', prefix + 'pob'], 0], 0], 'rgba(0,0,0,0)', ['has', f], ['step', ['to-number', ['get', f], 0], RAMP[0], 20, RAMP[1], 40, RAMP[2], 60, RAMP[3], 80, RAMP[4]], S.theme === 'dark' ? '#3a3d44' : '#d5d8de'];
   }
   function bColor() {
     var k = ['coalesce', ['get', 'k'], 0];
@@ -99,32 +100,36 @@
   var cssv = function (n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); };
   var hlFilter = function (cod) { return ['==', ['to-string', ['get', 'cod']], String(cod)]; };
 
-  function addAll() {
+  // Idempotentes: setStyle encadenados (cambios de tema rápidos) pueden disparar style.load varias veces.
+  function addSrc(id, src) { if (!map.getSource(id)) map.addSource(id, src); }
+  function addLyr(l) { if (!map.getLayer(l.id)) map.addLayer(l); }
+  function addAll() { addAllInner(); setLevel(S.level); }
+  function addAllInner() {
     var dark = S.theme === 'dark';
     LEVELS.forEach(function (n) {
       if (!geo[n]) return;
-      map.addSource(n, { type: 'geojson', data: geo[n] });
+      addSrc(n, { type: 'geojson', data: geo[n] });
       var vis = n === S.level ? 'visible' : 'none';
-      map.addLayer({ id: 'fill-' + n, type: 'fill', source: n, layout: { visibility: vis },
+      addLyr({ id: 'fill-' + n, type: 'fill', source: n, layout: { visibility: vis },
         paint: { 'fill-color': colorExpr(S.ind), 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.8, 13, 0.72, 15, 0.12] } });
-      map.addLayer({ id: 'line-' + n, type: 'line', source: n, layout: { visibility: vis },
+      addLyr({ id: 'line-' + n, type: 'line', source: n, layout: { visibility: vis },
         paint: { 'line-color': dark ? '#ffffff' : '#222222', 'line-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.25, 15, 0.12], 'line-width': n === 'secciones' ? 0.3 : 0.8 } });
     });
     if (hasPM) {
-      map.addSource('edificios', { type: 'vector', url: 'pmtiles://' + new URL('data/edificios.pmtiles', location.href).href, minzoom: 12, maxzoom: 16 });
-      map.addLayer({ id: 'edif-fill', type: 'fill', source: 'edificios', 'source-layer': 'edificios', minzoom: 13.5,
+      addSrc('edificios', { type: 'vector', url: 'pmtiles://' + new URL('data/edificios.pmtiles', location.href).href, minzoom: 12, maxzoom: 16 });
+      addLyr({ id: 'edif-fill', type: 'fill', source: 'edificios', 'source-layer': 'edificios', minzoom: 13.5,
         paint: { 'fill-color': bColor(), 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 13.5, 0, 14.5, 0.85, 16, 0.95] } });
-      map.addLayer({ id: 'edif-line', type: 'line', source: 'edificios', 'source-layer': 'edificios', minzoom: 16,
+      addLyr({ id: 'edif-line', type: 'line', source: 'edificios', 'source-layer': 'edificios', minzoom: 16,
         paint: { 'line-color': dark ? 'rgba(0,0,0,.55)' : 'rgba(0,0,0,.35)', 'line-width': 0.5 } });
     }
     ['distritos', 'barrios'].forEach(function (n) {
       if (!geo[n]) return;
       if (!map.getSource(n)) return;
-      map.addLayer({ id: 'hl-' + n, type: 'line', source: n, filter: hlFilter('__none__'),
+      addLyr({ id: 'hl-' + n, type: 'line', source: n, filter: hlFilter('__none__'),
         paint: { 'line-color': cssv('--accent-hover') || '#5AA8FF', 'line-width': 3 } });
     });
-    map.addSource('bases', { type: 'geojson', data: 'data/bases.geojson' });
-    map.addLayer({ id: 'bases', type: 'circle', source: 'bases',
+    addSrc('bases', { type: 'geojson', data: 'data/bases.geojson' });
+    addLyr({ id: 'bases', type: 'circle', source: 'bases',
       paint: { 'circle-color': cssv('--accent') || '#2D8EFF', 'circle-stroke-color': cssv('--bg-panel') || '#1A1C20', 'circle-stroke-width': 1.5,
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 16, 6] } });
   }
