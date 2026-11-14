@@ -48,3 +48,25 @@ Población que vive a menos de 250 m andando de cada estación (una persona pued
 
 - Mediana: 1.665 personas a < 250 m por estación. 69 estaciones no tienen población residente a < 250 m (44 tampoco a < 500 m).
 - Comprobaciones: la distancia mínima por estación coincide con la de 04 en los 88.176 edificios comparados (0 discrepancias); la población a < 250 m de alguna estación = 1.178.044 = total verde de la ciudad.
+
+
+## Ampliación óptima
+
+Selección secuencial (greedy) de 1000 nuevas estaciones que más mejoran la cobertura poblacional (58530 candidatos).
+
+| Nuevas estaciones | Verde | Amarillo | Rojo |
+|---:|---:|---:|---:|
+| 0 | 33.9 % | 51.8 % | 14.3 % |
+| 50 | 39.7 % | 51.2 % | 9.1 % |
+| 100 | 45.1 % | 48.1 % | 6.8 % |
+| 250 | 58.4 % | 38.0 % | 3.5 % |
+| 500 | 73.8 % | 24.7 % | 1.5 % |
+| 1000 | 90.2 % | 9.5 % | 0.3 % |
+
+Las 5 primeras:
+
+1. Usera · San Fermín — ganancia ponderada 13.795
+2. Villaverde · Ángeles — ganancia ponderada 11.261
+3. Hortaleza · Valdefuentes — ganancia ponderada 10.874
+4. Carabanchel · Vista Alegre — ganancia ponderada 10.150
+5. Villaverde · San Cristóbal — ganancia ponderada 9.924

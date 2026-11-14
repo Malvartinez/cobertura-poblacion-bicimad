@@ -100,6 +100,26 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--bg-surface-2)}
 .rk.es .pp{white-space:nowrap;font-size:11px}
 .dt{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px}
 .pop .sm{font-size:11px;margin-top:4px}
+
+.amp{flex:1;display:flex;flex-direction:column;min-height:0;overflow-y:auto}.amp[hidden]{display:none}
+.amp-top{flex:none;padding:8px 14px 4px}
+.amp .body{flex:none;overflow:visible}
+.amp-in{font-size:11px;color:var(--tx2);margin:0 0 8px;line-height:1.35}
+.amp-val{display:flex;align-items:center;gap:6px}.amp-val .bv{flex:1;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}.amp-val .bv small{font-size:11px;font-weight:400;color:var(--tx2);margin-left:4px}
+.amp-val .btn{padding:2px 10px;font-size:16px;line-height:1.2}
+#amp-r{width:100%;margin:8px 0 4px;accent-color:#ff4fd8;height:28px;touch-action:pan-y}
+.amp-q{display:flex;gap:4px}.amp-q .btn{flex:1;padding:3px 0;font-size:11px}.amp-q .btn.on{background:var(--accent);color:#fff;border-color:transparent}
+.amp-k{display:flex;gap:6px;margin-top:8px}.amp-k div{flex:1;min-width:0;background:var(--bg-surface);border-radius:var(--r1);padding:5px 8px;border-left:3px solid;font-size:10px;color:var(--tx2)}
+.amp-k b{display:block;font-size:17px;color:var(--tx);font-variant-numeric:tabular-nums}
+.amp-k em{font-style:normal;display:block;color:var(--tx);font-size:10px;}
+.amp-tot{font-size:11px;color:var(--tx2);margin:6px 0 2px}.amp-tot b{color:var(--tx)}
+#amp-svg{width:100%;height:auto;display:block;touch-action:none;cursor:crosshair;user-select:none}
+#amp-svg text{fill:var(--tx3);font-size:9px;font-family:inherit}
+.rk.am{grid-template-columns:38px 1fr}
+.rk.am .nm small{display:block;margin:0}
+.rk.am .rbar{height:5px;grid-column:2}.rk.am .rbar div{background:#ff4fd8}
+.rk.am .n{color:#ff4fd8;font-weight:600}
+.st.stn i{background:#ff4fd8}
 @media(max-width:800px){
   .app{flex-direction:column}
   .panel{width:100%;height:45%;border-left:0;border-top:1px solid var(--b2);transition:height var(--t2)}
@@ -114,5 +134,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--bg-surface-2)}
   .seg button{padding:4px 6px}
   .seg button{padding:4px 7px}
   .sum .big{font-size:20px}
+  .amp-top{max-height:none}
   .brand{font-size:13px}.lnk{display:none}
 }
+@media(max-width:800px){.amp{display:block;overflow-y:auto}.amp-top{overflow:visible;max-height:none}.amp .body{overflow:visible}}

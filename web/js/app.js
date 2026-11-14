@@ -30,8 +30,10 @@
   var S = {
     level: 'secciones', theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
     rl: 'distritos', order: 'best', sort: 'v', q: '', tab: 'rank', tsort: { k: 'nombre', d: 1 },
-    sk: 'a', sord: 'desc', sq: '', near: false
+    sk: 'a', sord: 'desc', sq: '', near: false, k: 0
   };
+  var AMP = { curve: null, pts: null, rows: [], drawn: 0, max: 0, raf: 0 };
+  var ampOn = function () { return S.tab === 'amp' && !!AMP.curve && !!AMP.pts; };
   var meta = {}, agg = null, geo = {}, bases = null, hasPM = false, map, popup;
   var val = function (p, k) { var x = p[k]; return x == null || x === '' ? null : Number(x); };
 
@@ -83,10 +85,11 @@
     var rows = [0, 1, 2].map(function (n) {
       return '<div class="brow"><b>' + ['&lt; 250 m', '250–500', '&gt; 500 m'][n] + '</b><div class="sw">' + SHADE[n].map(function (x) { return '<i style="background:' + x + '"></i>'; }).join('') + '</div></div>';
     }).join('');
-    $('#legend').innerHTML = '<button class="lg-tg" type="button" aria-label="Mostrar u ocultar leyenda">Leyenda</button><h4>% población a &lt; 250 m (' + (S.level) + ')</h4><div class="ramp">' +
-      RAMP.map(function (x) { return '<span style="background:' + x + '"></span>'; }).join('') + '</div><div class="rl"><span>0 %</span><span>100 %</span></div>' +
-      '<h4>Edificios (zoom 14+)</h4>' + rows + '<div class="rl" style="margin-left:52px;font-size:9px"><span>menos → más población por edificio</span></div>' + bk +
-      '<div class="st"><i></i>Base de BiciMAD</div>';
+    var amp = ampOn();
+    $('#legend').innerHTML = '<button class="lg-tg" type="button" aria-label="Mostrar u ocultar leyenda">Leyenda</button>' + (amp ? '' : '<h4>% población a &lt; 250 m (' + (S.level) + ')</h4><div class="ramp">' +
+      RAMP.map(function (x) { return '<span style="background:' + x + '"></span>'; }).join('') + '</div><div class="rl"><span>0 %</span><span>100 %</span></div>') +
+      '<h4>' + (amp ? 'Edificios con las estaciones nuevas' : 'Edificios (zoom 14+)') + '</h4>' + rows + '<div class="rl" style="margin-left:52px;font-size:9px"><span>menos → más población por edificio</span></div>' + bk +
+      '<div class="st"><i></i>Base de BiciMAD</div>' + (amp ? '<div class="st stn"><i></i>Estación nueva propuesta</div>' : '');
   }
 
   // ---------- mapa ----------
@@ -94,10 +97,20 @@
     var f = 'pct_v';
     return ['case', ['<=', ['to-number', ['get', 'pob'], 0], 0], 'rgba(0,0,0,0)', ['has', f], ['step', ['to-number', ['get', f], 0], RAMP[0], 20, RAMP[1], 40, RAMP[2], 60, RAMP[3], 80, RAMP[4]], S.theme === 'dark' ? '#3a3d44' : '#d5d8de'];
   }
-  function bColor() {
-    var k = ['coalesce', ['get', 'k'], 0];
+  function bColor(lvl) {
+    var k = ['coalesce', ['get', 'k'], 0]; // k = clase de población (sombreado), no confundir con S.k (estaciones nuevas)
     var m = function (n) { return ['match', k, 0, SHADE[n][0], 1, SHADE[n][1], 2, SHADE[n][2], 3, SHADE[n][3], SHADE[n][4]]; };
-    return ['match', ['get', 'n'], 0, m(0), 1, m(1), m(2)];
+    return ['match', lvl || ['get', 'n'], 0, m(0), 1, m(1), m(2)];
+  }
+  // nivel con S.k estaciones nuevas: kv<=k -> 0; ka<=k -> 1; si no, el actual n
+  function ampLevel(kk) {
+    return ['case', ['all', ['has', 'kv'], ['<=', ['to-number', ['get', 'kv'], 1e9], kk]], 0,
+      ['all', ['has', 'ka'], ['<=', ['to-number', ['get', 'ka'], 1e9], kk]], 1, ['to-number', ['get', 'n'], 2]];
+  }
+  function ampBuildingLevel(p, kk) {
+    if (p.kv != null && p.kv !== 'null' && Number(p.kv) <= kk) return 0;
+    if (p.ka != null && p.ka !== 'null' && Number(p.ka) <= kk) return 1;
+    return Number(p.n);
   }
   var cssv = function (n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); };
   var baseFilter = function (id) { return ['==', ['to-string', ['get', 'base_id']], String(id)]; };
@@ -106,7 +119,7 @@
   // Idempotentes: setStyle encadenados (cambios de tema rápidos) pueden disparar style.load varias veces.
   function addSrc(id, src) { if (!map.getSource(id)) map.addSource(id, src); }
   function addLyr(l) { if (!map.getLayer(l.id)) map.addLayer(l); }
-  function addAll() { addAllInner(); setLevel(S.level); }
+  function addAll() { addAllInner(); setLevel(S.level); applyAmpMode(); }
   function addAllInner() {
     var dark = S.theme === 'dark';
     LEVELS.forEach(function (n) {
@@ -122,6 +135,9 @@
       addSrc('edificios', { type: 'vector', url: 'pmtiles://' + new URL('data/edificios.pmtiles', location.href).href, minzoom: 12, maxzoom: 16 });
       addLyr({ id: 'edif-fill', type: 'fill', source: 'edificios', 'source-layer': 'edificios', minzoom: 13.5,
         paint: { 'fill-color': bColor(), 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 13.5, 0, 14.5, 0.85, 16, 0.95] } });
+      addLyr({ id: 'edif-fill-amp', type: 'fill', source: 'edificios', 'source-layer': 'edificios', minzoom: 12,
+        layout: { visibility: 'none' },
+        paint: { 'fill-color': bColor(ampLevel(S.k)), 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.8, 14.5, 0.85, 16, 0.95] } });
       addLyr({ id: 'edif-line', type: 'line', source: 'edificios', 'source-layer': 'edificios', minzoom: 16,
         paint: { 'line-color': dark ? 'rgba(0,0,0,.55)' : 'rgba(0,0,0,.35)', 'line-width': 0.5 } });
     }
@@ -138,11 +154,48 @@
     addLyr({ id: 'bases', type: 'circle', source: 'bases',
       paint: { 'circle-color': cssv('--accent') || '#2D8EFF', 'circle-stroke-color': cssv('--bg-panel') || '#1A1C20', 'circle-stroke-width': 1.5,
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 16, 6] } });
+    if (AMP.pts) {
+      // Círculos y resaltado se controlan con opacidad (propiedad de pintado): setFilter obliga a
+      // reprocesar la fuente en el worker, que queda en cola tras las teselas de edificios y no se ve al mover el deslizador.
+      addSrc('amp', { type: 'geojson', data: AMP.pts });
+      addSrc('amp-l', { type: 'geojson', data: AMP.pts }); // fuente aparte para etiquetas (sí usan filtro, por la colisión)
+      addLyr({ id: 'amp-hl', type: 'circle', source: 'amp', layout: { visibility: 'none' },
+        paint: { 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3, 'circle-stroke-opacity': ampHlOp(-1), 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 9, 16, 16] } });
+      addLyr({ id: 'amp-pts', type: 'circle', source: 'amp', layout: { visibility: 'none' },
+        paint: { 'circle-color': '#ff4fd8', 'circle-stroke-color': dark ? '#ffffff' : '#1A1C20', 'circle-stroke-width': 1.5,
+          'circle-opacity': ampKOp(S.k), 'circle-stroke-opacity': ampKOp(S.k),
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3.5, 16, 8] } });
+      addLyr({ id: 'amp-lbl', type: 'symbol', source: 'amp-l', filter: ['<=', ['get', 'r'], S.k], minzoom: 13, layout: { visibility: 'none', 'text-field': ['to-string', ['get', 'r']],
+        'symbol-sort-key': ['get', 'r'],
+        'text-font': ['Montserrat Medium', 'Montserrat Regular'], 'text-size': 11, 'text-offset': [0, -1.1], 'text-allow-overlap': false },
+        paint: { 'text-color': dark ? '#ffd0f4' : '#8a0a73', 'text-halo-color': dark ? '#111214' : '#ffffff', 'text-halo-width': 1.5 } });
+    }
+  }
+  function ampKOp(k) { return ['case', ['<=', ['get', 'r'], k], 1, 0]; }
+  function ampHlOp(r) { return ['case', ['==', ['get', 'r'], r], 1, 0]; }
+  function ampHl(r) { if (map && map.getLayer('amp-hl')) map.setPaintProperty('amp-hl', 'circle-stroke-opacity', ampHlOp(r)); }
+  // Modo ampliación: oculta coropletas y edificios normales, muestra edificios recalculados y estaciones nuevas
+  function applyAmpMode() {
+    if (!map || !map.getStyle()) return;
+    var on = ampOn(), v = function (b) { return b ? 'visible' : 'none'; };
+    ['amp-pts', 'amp-lbl', 'amp-hl', 'edif-fill-amp'].forEach(function (id) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v(on)); });
+    if (map.getLayer('edif-fill')) map.setLayoutProperty('edif-fill', 'visibility', v(!on));
+    LEVELS.forEach(function (l) {
+      if (map.getLayer('fill-' + l)) map.setLayoutProperty('fill-' + l, 'visibility', v(!on && l === S.level));
+      if (map.getLayer('line-' + l)) map.setPaintProperty('line-' + l, 'line-opacity', on ? ['interpolate', ['linear'], ['zoom'], 12, 0.12, 15, 0.08] : ['interpolate', ['linear'], ['zoom'], 12, 0.25, 15, 0.12]);
+    });
+    if (on) applyAmpK();
+  }
+  function applyAmpK() {
+    if (!map || !map.getStyle()) return;
+    if (map.getLayer('amp-pts')) { map.setPaintProperty('amp-pts', 'circle-opacity', ampKOp(S.k)); map.setPaintProperty('amp-pts', 'circle-stroke-opacity', ampKOp(S.k)); }
+    if (map.getLayer('amp-lbl')) map.setFilter('amp-lbl', ['<=', ['get', 'r'], S.k]);
+    if (map.getLayer('edif-fill-amp')) map.setPaintProperty('edif-fill-amp', 'fill-color', bColor(ampLevel(S.k)));
   }
   function setLevel(n) {
     S.level = n;
     LEVELS.forEach(function (l) {
-      ['fill-', 'line-'].forEach(function (p) { if (map && map.getLayer(p + l)) map.setLayoutProperty(p + l, 'visibility', l === n ? 'visible' : 'none'); });
+      ['fill-', 'line-'].forEach(function (p) { if (map && map.getLayer(p + l)) map.setLayoutProperty(p + l, 'visibility', l === n && !(p === 'fill-' && ampOn()) ? 'visible' : 'none'); });
     });
     $$('#seg-lvl button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === n); });
     renderLegend();
@@ -170,12 +223,16 @@
     var has = function (id) { return map.getLayer(id); };
     var f = has('bases') && map.queryRenderedFeatures(e.point, { layers: ['bases'] })[0];
     if (f) return showPopup(f.geometry.coordinates, stationPopup(f.properties));
-    f = has('edif-fill') && map.queryRenderedFeatures(e.point, { layers: ['edif-fill'] })[0];
+    f = has('amp-pts') && ampOn() && map.queryRenderedFeatures(e.point, { layers: ['amp-pts'] })[0];
+    if (f) return showPopup(f.geometry.coordinates, ampPopup(f.properties));
+    var bl = ampOn() ? 'edif-fill-amp' : 'edif-fill';
+    f = has(bl) && map.queryRenderedFeatures(e.point, { layers: [bl] })[0];
     if (f) {
       var p = f.properties, d = (p.d == null || p.d === 'null' || p.d === '') ? null : Number(p.d), n = Number(p.n);
       var lv = ['Menos de 250 m', '250–500 m', 'Más de 500 m'][n] || '—';
       return showPopup(e.lngLat, '<div class="pop"><h3>Edificio</h3>Población estimada: <b>' + fmt(p.p) + ' hab.</b><br>Distancia andando: <b>' +
-        (d == null ? '&gt; 1.500 m' : fmt(d) + ' m') + '</b><br>Base más cercana: <b>' + esc(p.b && p.b !== 'null' ? p.b : '—') + '</b><br>Nivel: <b style="color:' + [COL.v, COL.a, COL.r][n] + '">' + lv + '</b></div>');
+        (d == null ? '&gt; 1.500 m' : fmt(d) + ' m') + '</b><br>Base más cercana: <b>' + esc(p.b && p.b !== 'null' ? p.b : '—') + '</b><br>Nivel: <b style="color:' + [COL.v, COL.a, COL.r][n] + '">' + lv + '</b>' +
+        (ampOn() ? '<br>Con ' + S.k + ' estaci' + (S.k === 1 ? 'ón nueva' : 'ones nuevas') + ': <b style="color:' + [COL.v, COL.a, COL.r][ampBuildingLevel(p, S.k)] + '">' + (['Menos de 250 m', '250–500 m', 'Más de 500 m'][ampBuildingLevel(p, S.k)] || '—') + '</b>' : '') + '</div>');
     }
     f = has('fill-' + S.level) && map.queryRenderedFeatures(e.point, { layers: ['fill-' + S.level] })[0];
     if (f) {
@@ -184,7 +241,7 @@
     }
   }
   function onMove(e) {
-    var l = ['bases', 'edif-fill', 'fill-' + S.level].filter(function (i) { return map.getLayer(i); });
+    var l = ['bases', 'amp-pts', 'edif-fill', 'edif-fill-amp', 'fill-' + S.level].filter(function (i) { return map.getLayer(i); });
     map.getCanvas().style.cursor = l.length && map.queryRenderedFeatures(e.point, { layers: l }).length ? 'pointer' : '';
   }
 
@@ -340,6 +397,106 @@
   $('#st-q').oninput = function () { S.sq = this.value; renderStations(); };
   $('#st-near').onchange = function () { S.near = this.checked; renderStations(); };
 
+
+  // ---------- ampliación ----------
+  var AMPQ = [50, 100, 250, 500, 1000];
+  var ampPct = function (a, k) { return 100 * a[k] / AMP.curve.total; };
+  var sgn = function (x) { return x > 0 ? '+' : x < 0 ? '−' : ''; };
+  var pp1 = function (x) { return sgn(x) + Math.abs(x).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); };
+  var cx = function (k) { return 32 + 360 * k / AMP.max; };
+  function ampPopup(p) {
+    return '<div class="pop"><h3>Estación nueva nº ' + fmt(p.r) + '</h3><div class="muted">' + (p.distrito ? esc(p.distrito) + (p.barrio && p.barrio !== 'null' ? ' · ' + esc(p.barrio) : '') : '—') + '</div>' +
+      '<div><span style="color:' + COL.v + '">●</span> <b>+' + fmt(p.gv) + '</b> personas pasan a verde</div><div><span style="color:' + COL.r + '">●</span> <b>' + fmt(p.gr) + '</b> dejan de estar en rojo</div></div>';
+  }
+  function ampInit() {
+    var m = (meta.ampliacion || {}), c = AMP.curve;
+    AMP.max = Math.min(m.max || (c.v.length - 1), c.v.length - 1);
+    var pts = AMP.pts.features.slice().sort(function (a, b) { return a.properties.r - b.properties.r; });
+    var gmax = 0; pts.forEach(function (f) { gmax = Math.max(gmax, Number(f.properties.g) || 0); });
+    AMP.rows = pts.map(function (f) {
+      var p = f.properties, w = gmax ? 100 * (Number(p.g) || 0) / gmax : 0;
+      return '<div class="rk am" data-r="' + p.r + '"><span class="n">#' + p.r + '</span><span class="nm">' + esc(p.distrito || '—') + (p.barrio && p.barrio !== 'null' ? ' · ' + esc(p.barrio) : '') +
+        '<small>+' + fmt(p.gv) + ' a verde · +' + fmt(p.gr) + ' fuera de rojo</small></span><div class="rbar"><div style="width:' + w + '%"></div></div></div>';
+    });
+    AMP.coords = {}; pts.forEach(function (f) { AMP.coords[f.properties.r] = f.geometry.coordinates; });
+    $('#amp-top').innerHTML = '<p class="amp-in">Estaciones nuevas elegidas una a una: cada una es la que más mejora la cobertura teniendo en cuenta las anteriores.' +
+      (m.objetivo ? ' <b>Objetivo:</b> ' + esc(m.objetivo) + '.' : '') + '</p>' +
+      '<div class="amp-val"><button class="btn" id="amp-m" aria-label="Una menos">−</button><div class="bv" id="amp-bv"></div><button class="btn" id="amp-p" aria-label="Una más">+</button></div>' +
+      '<input type="range" id="amp-r" min="0" max="' + AMP.max + '" step="1" value="' + S.k + '" aria-label="Número de estaciones nuevas">' +
+      '<div class="amp-q">' + AMPQ.filter(function (q) { return q <= AMP.max; }).map(function (q) { return '<button class="btn" data-q="' + q + '">' + q + '</button>'; }).join('') + '</div>' +
+      '<div class="amp-tot" id="amp-tot"></div><div class="sbar" id="amp-sb"></div><div class="amp-k" id="amp-k"></div>' +
+      '<svg id="amp-svg" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid meet"><g id="amp-st"></g><g id="amp-mk"></g></svg>';
+    $('#amp-r').oninput = function () { setK(+this.value); };
+    $('#amp-m').onclick = function () { setK(S.k - 1); };
+    $('#amp-p').onclick = function () { setK(S.k + 1); };
+    $('#amp-top').onclick = function (e) { var q = e.target.closest('[data-q]'); if (q) setK(+q.dataset.q); };
+    var svg = $('#amp-svg'), drag = false;
+    var fromEv = function (e) { var r = svg.getBoundingClientRect(); setK(Math.max(0, Math.min(1, ((e.clientX - r.left) / r.width * 400 - 32) / 360)) * AMP.max); };
+    svg.addEventListener('pointerdown', function (e) { drag = true; try { svg.setPointerCapture(e.pointerId); } catch (x) {} fromEv(e); });
+    svg.addEventListener('pointermove', function (e) { if (drag) fromEv(e); });
+    svg.addEventListener('pointerup', function () { drag = false; });
+    svg.addEventListener('pointercancel', function () { drag = false; });
+    ampChartStatic();
+    AMP.drawn = 0; $('#amplist').innerHTML = '';
+    ampRender();
+  }
+  function ampChartStatic() {
+    var c = AMP.curve, lo = 100, hi = 0;
+    ['v', 'a', 'r'].forEach(function (s) { for (var i = 0; i <= AMP.max; i++) { var y = ampPct(c[s], i); lo = Math.min(lo, y); hi = Math.max(hi, y); } });
+    lo = Math.max(0, Math.floor(lo / 10) * 10); hi = Math.min(100, Math.ceil(hi / 10) * 10); if (hi - lo < 20) hi = Math.min(100, lo + 20);
+    var cy = function (v) { return 8 + 114 * (1 - (v - lo) / (hi - lo)); }; AMP.cy = cy;
+    var g = '', step = (hi - lo) > 50 ? 20 : 10;
+    for (var t = lo; t <= hi; t += step) g += '<line x1="32" x2="392" y1="' + cy(t) + '" y2="' + cy(t) + '" stroke="var(--b2)" stroke-width="1"/><text x="28" y="' + (cy(t) + 3) + '" text-anchor="end">' + t + ' %</text>';
+    [0, .25, .5, .75, 1].forEach(function (f) { var k = Math.round(f * AMP.max); g += '<text x="' + cx(k) + '" y="135" text-anchor="' + (f === 0 ? 'start' : f === 1 ? 'end' : 'middle') + '">' + k + '</text>'; });
+    var stp = Math.max(1, Math.floor(AMP.max / 400));
+    ['a', 'r', 'v'].forEach(function (s) {
+      var d = ''; for (var i = 0; i <= AMP.max; i += stp) d += (d ? 'L' : 'M') + cx(i).toFixed(1) + ' ' + cy(ampPct(c[s], i)).toFixed(1);
+      d += 'L' + cx(AMP.max).toFixed(1) + ' ' + cy(ampPct(c[s], AMP.max)).toFixed(1);
+      g += '<path d="' + d + '" fill="none" stroke="' + COL[s] + '" stroke-width="' + (s === 'a' ? 1.2 : 2) + '"' + (s === 'a' ? ' stroke-dasharray="4 3"' : '') + '/>';
+    });
+    $('#amp-st').innerHTML = g;
+  }
+  function ampRender() {
+    var c = AMP.curve, k = S.k;
+    $('#amp-bv').innerHTML = fmt(k) + ' <small>' + (k === 1 ? 'estación nueva' : 'estaciones nuevas') + '</small>';
+    if ($('#amp-r').value != k) $('#amp-r').value = k;
+    $$('.amp-q .btn').forEach(function (b) { b.classList.toggle('on', +b.dataset.q === k); });
+    $('#amp-tot').innerHTML = 'Total de estaciones: <b>' + fmt(bases ? bases.features.length : 0) + ' + ' + fmt(k) + '</b>';
+    $('#amp-sb').innerHTML = ['v', 'a', 'r'].map(function (s) { var w = ampPct(c[s], k); return '<div class="' + s + '" style="width:' + w + '%">' + (w >= 9 ? Math.round(w) + ' %' : '') + '</div>'; }).join('');
+    $('#amp-k').innerHTML = ['v', 'a', 'r'].map(function (s) {
+      var dp = c[s][k] - c[s][0], dpp = ampPct(c[s], k) - ampPct(c[s], 0);
+      return '<div style="border-color:' + COL[s] + '">' + NAMES[s] + '<b>' + pc(ampPct(c[s], k)) + '</b><em>' + (k ? pp1(dpp) + ' pp · ' + sgn(dp) + fmt(Math.abs(dp)) + ' hab.' : 'situación actual') + '</em></div>';
+    }).join('');
+    var mk = '<line x1="' + cx(k) + '" x2="' + cx(k) + '" y1="8" y2="122" stroke="var(--tx)" stroke-width="1" stroke-dasharray="3 2"/>';
+    var lbl = k > AMP.max * .6 ? 'end' : 'start', dx = lbl === 'end' ? -6 : 6;
+    ['v', 'a', 'r'].forEach(function (s) {
+      var y = AMP.cy(ampPct(c[s], k));
+      mk += '<circle cx="' + cx(k) + '" cy="' + y + '" r="3.5" fill="' + COL[s] + '" stroke="var(--bg-panel)" stroke-width="1.5"/>';
+      if (s !== 'a') mk += '<text x="' + (cx(k) + dx) + '" y="' + (y + (s === 'v' && y > 20 ? -6 : 12)) + '" text-anchor="' + lbl + '" style="fill:' + COL[s] + ';font-weight:600;font-size:10px">' + ampPct(c[s], k).toLocaleString('es-ES', { maximumFractionDigits: 1, minimumFractionDigits: 1 }) + ' %</text>';
+    });
+    $('#amp-mk').innerHTML = mk;
+    var L = $('#amplist');
+    if (!k) { L.innerHTML = '<div class="empty">Mueve el control para añadir estaciones nuevas.</div>'; AMP.drawn = 0; return; }
+    if (!AMP.drawn) L.innerHTML = '';
+    if (k < AMP.drawn) { while (AMP.drawn > k) { L.removeChild(L.lastChild); AMP.drawn--; } }
+    else if (k > AMP.drawn) { L.insertAdjacentHTML('beforeend', AMP.rows.slice(AMP.drawn, k).join('')); AMP.drawn = k; }
+  }
+  function setK(k) {
+    k = Math.max(0, Math.min(AMP.max, Math.round(k) || 0));
+    if (k === S.k) return;
+    S.k = k;
+    if (AMP.raf) return;
+    AMP.raf = requestAnimationFrame(function () { AMP.raf = 0; ampRender(); applyAmpK(); });
+  }
+  $('#amplist').addEventListener('mouseover', function (e) {
+    var r = e.target.closest('.rk'); ampHl(r ? +r.dataset.r : -1);
+  });
+  $('#amplist').addEventListener('mouseleave', function () { ampHl(-1); });
+  $('#amplist').addEventListener('click', function (e) {
+    var r = e.target.closest('.rk'), c = r && AMP.coords[r.dataset.r];
+    if (c && map) map.flyTo({ center: c, zoom: 15.5, duration: 700 });
+  });
+
   function renderAll() { renderSum(); renderRank(); renderTable(); renderStations(); }
 
   $$('.tabs button').forEach(function (b) {
@@ -347,10 +504,13 @@
       S.tab = b.dataset.tab;
       $$('.tabs button').forEach(function (x) { x.classList.toggle('on', x === b); });
       var t = S.tab;
+      $('#amp').hidden = t !== 'amp';
       $('#rank').hidden = t !== 'rank'; $('#tabla').hidden = t !== 'tabla'; $('#stlist').hidden = t !== 'est';
-      $('#rank-tools').hidden = t !== 'rank'; $('#tab-tools').hidden = t !== 'tabla'; $('#zone-tools').hidden = t === 'est';
+      $('#rank-tools').hidden = t !== 'rank'; $('#tab-tools').hidden = t !== 'tabla'; $('#zone-tools').hidden = t === 'est' || t === 'amp';
       ['#st-tools', '#st-tools2', '#st-note', '#st-sum'].forEach(function (i) { $(i).hidden = t !== 'est'; });
       if (t !== 'est') hlBase(null);
+      if (t === 'amp' && AMP.curve) ampRender();
+      renderLegend(); applyAmpMode();
     };
   });
   $('#seg-rank').onclick = function (e) {
@@ -417,9 +577,12 @@
     getJSON('metadata.json').then(function (m) { meta = m; }).catch(function () {}),
     getJSON('agregados.json').then(function (a) { agg = a; }).catch(function () {}),
     getJSON('bases.geojson').then(function (g) { bases = g; }).catch(function () {}),
+    getJSON('ampliacion_curva.json').then(function (c) { if (c && c.v && c.total) AMP.curve = c; }).catch(function () {}),
+    getJSON('ampliacion_estaciones.geojson').then(function (g) { AMP.pts = g; }).catch(function () {}),
     fetch('data/edificios.pmtiles', { method: 'HEAD' }).then(function (r) { hasPM = r.ok && !!window.pmtiles; }).catch(function () {})
   ].concat(LEVELS.map(function (n) { return getJSON(n + '.geojson').then(function (g) { geo[n] = g; }).catch(function () {}); }));
   Promise.all(pr).then(function () {
+    if (AMP.curve && AMP.pts) ampInit(); else { AMP.curve = AMP.pts = null; $('#amp-top').innerHTML = '<div class="empty">Datos de ampliación no disponibles</div>'; }
     renderLegend(); renderAll(); init();
     if (!store.get('bicimad_visto')) openOb();
   });

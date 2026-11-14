@@ -30,3 +30,8 @@ Formato: una línea por decisión (qué y por qué).
 - Ranking de estaciones (`pipeline/07_ranking_bases.py`): para cada estación se cuenta toda la población que vive a < 250 m y a 250–500 m andando de ella, aunque tenga otra más cercana (una persona puede contar en varias) — es la lectura literal de "vive a menos de X m de esta base"; la web ofrece además el recuento solo como base más cercana (`p250_cercana`, `p500_cercana`).
 - 07 se ejecuta después de 06 porque 06 reescribe `bases.geojson` sin los campos del ranking — orden fijado en `run_all.py`.
 - Se quita de la web el selector de grupo de población (15–64 / 65+) y se dejan de exportar los campos `a_*`/`m_*` — no aportaba (los porcentajes apenas difieren del total); siguen calculados en `data/processed/`.
+
+- Ampliación (pipeline/08_ampliacion.py): objetivo = mejora ponderada por persona (rojo→amarillo +1, amarillo→verde +1, rojo→verde +2) — premia tanto sacar a gente del rojo como llevarla a verde con un único número
+- Candidatos = nodos de la red peatonal dentro del municipio, uno por celda de 50 m (el más cercano al centro) — con ~200 000 nodos el cálculo no es tractable y a 50 m la pérdida es mínima; la estación nueva se sitúa exactamente en su nodo
+- Selección greedy con evaluación perezosa (CELF) — el objetivo es submodular, da exactamente la misma secuencia que el greedy simple evaluando muchos menos candidatos
+- Máximo de 1000 nuevas estaciones — suficiente para ver el rendimiento decreciente; cada estación se calcula dado el conjunto ya elegido (existentes + nuevas anteriores)
