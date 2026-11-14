@@ -35,3 +35,19 @@ Formato: una línea por decisión (qué y por qué).
 - Candidatos = nodos de la red peatonal dentro del municipio, uno por celda de 50 m (el más cercano al centro) — con ~200 000 nodos el cálculo no es tractable y a 50 m la pérdida es mínima; la estación nueva se sitúa exactamente en su nodo
 - Selección greedy con evaluación perezosa (CELF) — el objetivo es submodular, da exactamente la misma secuencia que el greedy simple evaluando muchos menos candidatos
 - Máximo de 1000 nuevas estaciones — suficiente para ver el rendimiento decreciente; cada estación se calcula dado el conjunto ya elegido (existentes + nuevas anteriores)
+
+## Web, despliegue y forma de trabajo
+
+- Despliegue en un repositorio público nuevo (`Malvartinez/cobertura-poblacion-bicimad`) con GitHub Pages vía Actions publicando `web/` — lo pedía el plan; Pages gratuito requiere repositorio público.
+- Primera versión de la web probada con Edge headless controlado por DevTools Protocol (script Node) — no había otro navegador automatizable; las capturas con `--screenshot` no esperan a que carguen las teselas.
+- Mapa con `hash: true` — la vista (zoom y posición) queda en la URL y se puede compartir; también facilita las pruebas.
+- Rediseño inspirado en busmadrid.org (estilo y disposición, no contenido ni marca): IBM Plex Sans, tema oscuro por defecto con conmutador a claro, tokens de color de su CSS, mapa base CARTO dark-matter/positron, panel lateral con pestañas y presentación inicial por pasos — petición del usuario.
+- Secciones sin población se pintan transparentes en la coropleta — en rojo (0 % verde) dominaban visualmente el mapa (Monte de El Pardo, parques).
+- Altas de fuentes y capas idempotentes (`addSrc`/`addLyr`) en cada `style.load` — al cambiar de tema rápidamente varios `setStyle` encadenados intentaban añadir capas duplicadas y dejaban el mapa a medias.
+- Leyenda plegable en móvil (botón «Leyenda») — en 400 px tapaba media pantalla.
+- Números siempre con separador de miles (`useGrouping: 'always'`) — por defecto es-ES no lo pone en cifras de 4 dígitos («8844» junto a «20.246» resultaba incoherente).
+- Estaciones nuevas de la ampliación mostradas/ocultadas con opacidad (propiedad de pintado) en vez de `setFilter`; las etiquetas usan una fuente GeoJSON aparte — `setFilter` obliga a reprocesar la fuente en el worker, que quedaba en cola tras las teselas pesadas de edificios (z12) y las estaciones no llegaban a pintarse al mover el deslizador.
+- En la pestaña Ampliación se ocultan las coropletas y los edificios se muestran desde zoom 12 con su nivel recalculado (`ka`/`kv`) — las coropletas no se recalculan por cada valor del deslizador.
+- Para probar en local se usa un servidor estático propio con soporte `Range` — PMTiles lo necesita y `python -m http.server` no lo admite.
+- Trabajo repartido en subagentes (Sonnet para desarrollo, Haiku para tareas mecánicas) coordinados desde la sesión principal, según el plan — ahorrar contexto y tokens.
+- La sesión de Claude Code se cerró dos veces (≈17:00 y 17:44) y con ella murieron los subagentes en segundo plano; un `06_exportar_web.py` huérfano siguió ejecutándose y dejó temporalmente vacío `edificios.pmtiles` y sin campos `bases.geojson` — se esperó a que terminara, se relanzó `07`. Desde entonces `08_ampliacion.py` guarda resultados intermedios en disco (se reanuda si se corta) y `08` y el generador de teselas `_pmtiles.py` escriben de forma atómica (fichero temporal + `os.replace`); el resto de scripts no.

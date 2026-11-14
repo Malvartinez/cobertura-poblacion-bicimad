@@ -7,3 +7,6 @@ scipy
 pandas
 pyarrow
 requests
+pmtiles>=3.4
+mapbox-vector-tile>=2.0
+mercantile
