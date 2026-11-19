@@ -4,6 +4,8 @@ Calcula qué población de Madrid vive a menos de 250 m (verde), entre 250 y 500
 
 Web: https://malvartinez.github.io/cobertura-poblacion-bicimad/
 
+> **Comparativa nacional:** esta ciudad está incluida, con el mismo método y datos actualizados, en [Cobertura bici pública](https://malvartinez.github.io/cobertura-bici-publica-espana/) ([código](https://github.com/Malvartinez/cobertura-bici-publica-espana)), que compara los sistemas de bicicleta pública de las grandes ciudades españolas.
+
 ## Qué ofrece la web
 
 - **Mapa**: coropleta por sección censal, barrio o distrito (% de población en verde); a partir de zoom 14, contornos reales de los edificios del Catastro coloreados por nivel y con tono más oscuro cuanta más población; bases de BiciMAD siempre visibles.
