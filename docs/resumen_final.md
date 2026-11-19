@@ -18,15 +18,17 @@
 
 ## Resultado actual (Madrid, 3.477.497 hab., Censo anual 2025)
 
+Recalculado el 2026-11-19 midiendo desde el borde de cada edificio (ver `decisiones.md`), con estaciones, edificios y red peatonal descargados ese día.
+
 | Nivel | Población | % |
 |---|---:|---:|
-| Verde (< 250 m) | 1.178.044 | 33,9 % |
-| Amarillo (250–500 m) | 1.801.946 | 51,8 % |
-| Rojo (> 500 m) | 497.507 | 14,3 % |
+| Verde (< 250 m) | 1.533.581 | 44,1 % |
+| Amarillo (250–500 m) | 1.589.313 | 45,7 % |
+| Rojo (> 500 m) | 354.604 | 10,2 % |
 
-Por edades (calculado, ya no se muestra en la web): 15–64 años 34,1 % / 51,8 % / 14,1 %; 65+ años 34,5 % / 51,9 % / 13,6 %.
+Por edades (calculado, ya no se muestra en la web): 15–64 años 44,3 % / 45,6 % / 10,0 %; 65+ años 44,6 % / 45,6 % / 9,7 %.
 
-Mejores distritos por % en verde: Centro (76,8 %), Arganzuela (58,0 %), Salamanca (53,8 %). Mayor % en rojo: Moratalaz (30,8 %), Hortaleza (29,6 %), Moncloa-Aravaca (28,0 %).
+Mejores distritos por % en verde: Centro (82,9 %), Arganzuela (75,5 %), Salamanca (62,2 %). Mayor % en rojo: Moncloa-Aravaca (23,4 %), Hortaleza (21,4 %), Moratalaz (20,6 %).
 
 ## Ranking de estaciones
 
@@ -34,34 +36,34 @@ Población que vive a menos de 250 m andando de cada estación (una persona pued
 
 | Estación | Distrito | < 250 m | 250–500 m |
 |---|---|---:|---:|
-| 53 - Metro Lavapiés | Centro | 8.844 | 20.246 |
-| 79 - Metro Menéndez Pelayo | Retiro | 7.413 | 14.404 |
-| 418 - Puerto de Arlabán - San Diego | Puente de Vallecas | 6.419 | 14.928 |
-| 226 - Sierra Toledana - Camino de Valderribas | Puente de Vallecas | 6.384 | 15.671 |
-| 245 - Galileo - Donoso Cortés | Chamberí | 6.164 | 16.243 |
+| 53 - Metro Lavapiés | Centro | 10.083 | 20.383 |
+| 79 - Metro Menéndez Pelayo | Retiro | 8.439 | 16.635 |
+| 475 - Aurora Boreal - Minerva | Vicálvaro | 8.384 | 8.072 |
+| 226 - Sierra Toledana - Camino de Valderribas | Puente de Vallecas | 8.026 | 16.873 |
+| 163 - Metro Acacias | Arganzuela | 7.272 | 12.686 |
 
-Mediana: 1.665 personas a < 250 m por estación. 69 estaciones no tienen población residente a < 250 m (44 tampoco a < 500 m).
+Mediana: 2.429 personas a < 250 m por estación. 60 estaciones no tienen población residente a < 250 m (43 tampoco a < 500 m).
 
 ## Ampliación óptima
 
-Selección secuencial de 1.000 estaciones nuevas (58.530 candidatos), maximizando la mejora ponderada por persona (rojo→amarillo +1, amarillo→verde +1, rojo→verde +2).
+Selección secuencial de 1.000 estaciones nuevas (58.623 candidatos), maximizando la mejora ponderada por persona (rojo→amarillo +1, amarillo→verde +1, rojo→verde +2).
 
 | Estaciones nuevas | Verde | Amarillo | Rojo |
 |---:|---:|---:|---:|
-| 0 | 33,9 % | 51,8 % | 14,3 % |
-| 50 | 39,7 % | 51,2 % | 9,1 % |
-| 100 | 45,1 % | 48,1 % | 6,8 % |
-| 250 | 58,4 % | 38,0 % | 3,5 % |
-| 500 | 73,8 % | 24,7 % | 1,5 % |
-| 1.000 | 90,2 % | 9,5 % | 0,3 % |
+| 0 | 44,1 % | 45,7 % | 10,2 % |
+| 50 | 51,2 % | 42,6 % | 6,1 % |
+| 100 | 57,3 % | 38,1 % | 4,6 % |
+| 250 | 71,1 % | 27,0 % | 2,0 % |
+| 500 | 85,1 % | 14,0 % | 0,9 % |
+| 1.000 | 96,2 % | 3,7 % | 0,1 % |
 
-Las cinco primeras: Usera · San Fermín (ganancia 13.795), Villaverde · Ángeles (11.261), Hortaleza · Valdefuentes (10.874), Carabanchel · Vista Alegre (10.150), Villaverde · San Cristóbal (9.924).
+Las cinco primeras: Usera · San Fermín (ganancia 14.417), Hortaleza · Valdefuentes (12.340), Villaverde · San Cristóbal (10.694), Puente de Vallecas · Palomeras Bajas (10.175), Villaverde · Ángeles (10.066).
 
 ## Validaciones
 
 - Reparto: la suma por edificios coincide exactamente con el censo (3.477.497), también por sección, barrio y distrito.
 - Distancias: 50/50 edificios de muestra coinciden con la ruta calculada individualmente (`validacion_distancias.md`).
-- Ranking de estaciones: la distancia mínima por estación coincide con la de `04` en los 88.176 edificios comparados; la población a < 250 m de alguna estación = total en verde.
+- Ranking de estaciones: la distancia mínima por estación coincide con la de `04` en los 90.465 edificios comparados; la población a < 250 m de alguna estación = total en verde.
 - Ampliación: la cobertura recalculada desde cero con 0, 100 y 1.000 estaciones nuevas coincide exactamente con la del algoritmo (`validacion_ampliacion.md`).
 - Web: revisada con capturas de Edge headless (tema oscuro y claro, escritorio y 400 px).
 
@@ -76,7 +78,7 @@ Las cinco primeras: Usera · San Fermín (ganancia 13.795), Villaverde · Ángel
 ## Limitaciones y pendientes
 
 - 30 bases del feed GBFS fuera del término municipal (zona de Pozuelo/Aravaca y bordes): revisar si son reales; afectan a la cobertura del borde oeste.
-- 12 bases enganchadas a más de 150 m de la red; 1.973 edificios sin base a menos de 1.500 m (rojo).
+- 12 bases enganchadas a más de 150 m de la red; 1.943 edificios sin base a menos de 1.500 m (rojo).
 - La ampliación solo maximiza cobertura residencial: no tiene en cuenta viabilidad del emplazamiento, demanda, pendientes ni coste. Los candidatos se agrupan en celdas de 50 m.
 - En la pestaña Ampliación los edificios recalculados solo se ven desde zoom 12 y las coropletas se ocultan; en móvil el deslizador queda bajo en el panel inferior. No se ha probado esa pestaña en tema claro ni en móvil.
 - Las teselas de edificios a zoom 12 pesan hasta 640 KB cada una; en equipos lentos la vista de ciudad de la Ampliación puede tardar en pintar los edificios.

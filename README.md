@@ -27,7 +27,7 @@ Web: https://malvartinez.github.io/cobertura-poblacion-bicimad/
 ## Método
 
 1. Reparto de la población de cada sección censal entre sus edificios residenciales, proporcional al número de viviendas (la suma cuadra exactamente con el censo).
-2. Cada edificio se engancha a la arista peatonal más cercana; cada base, al nodo más cercano.
+2. Cada edificio accede a la red por su mejor punto: la arista más cercana a su punto interior o cualquier nodo a 30 m o menos de su huella (se suma la distancia hasta el borde). Cada base se engancha al nodo más cercano.
 3. Dijkstra multiorigen (scipy) desde todas las bases a la vez, con corte a 1.500 m: distancia de cada edificio a su base más cercana.
 4. Agregados por ciudad, distrito, barrio y sección.
 5. Ranking de estaciones: Dijkstra desde cada base (corte 500 m).
@@ -63,7 +63,7 @@ GitHub Actions (`.github/workflows/pages.yml`) publica el contenido de `web/` en
 ## Limitaciones
 
 - 30 bases del feed GBFS están fuera del término municipal (zona de Pozuelo/Aravaca y bordes); se mantienen y conviene revisarlas.
-- 1.973 edificios no tienen ninguna base a menos de 1.500 m (se cuentan como rojo).
+- 1.943 edificios no tienen ninguna base a menos de 1.500 m (se cuentan como rojo).
 - La ampliación es un ejercicio de máxima cobertura residencial: no considera viabilidad del emplazamiento, demanda, topografía ni coste.
 - Más detalle en `docs/decisiones.md` y `docs/resumen_final.md`.
 
