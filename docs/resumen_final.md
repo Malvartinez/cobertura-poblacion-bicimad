@@ -18,17 +18,15 @@
 
 ## Resultado actual (Madrid, 3.477.497 hab., Censo anual 2025)
 
-Recalculado el 2026-11-19 midiendo desde el borde de cada edificio (ver `decisiones.md`), con estaciones, edificios y red peatonal descargados ese día.
+Recalculado el 2026-11-20 midiendo desde los portales del Catastro (ver `decisiones.md`), con estaciones, edificios y red peatonal descargados el 2026-11-19.
 
 | Nivel | Población | % |
 |---|---:|---:|
-| Verde (< 250 m) | 1.533.581 | 44,1 % |
-| Amarillo (250–500 m) | 1.589.313 | 45,7 % |
-| Rojo (> 500 m) | 354.604 | 10,2 % |
+| Verde (< 250 m) | 1.402.658 | 40,3 % |
+| Amarillo (250–500 m) | 1.669.124 | 48,0 % |
+| Rojo (> 500 m) | 405.715 | 11,7 % |
 
-Por edades (calculado, ya no se muestra en la web): 15–64 años 44,3 % / 45,6 % / 10,0 %; 65+ años 44,6 % / 45,6 % / 9,7 %.
-
-Mejores distritos por % en verde: Centro (82,9 %), Arganzuela (75,5 %), Salamanca (62,2 %). Mayor % en rojo: Moncloa-Aravaca (23,4 %), Hortaleza (21,4 %), Moratalaz (20,6 %).
+Mejores distritos por % en verde: Centro (81,2 %), Arganzuela (72,4 %), Salamanca (60,1 %). Mayor % en rojo: Hortaleza (24,8 %), Moncloa-Aravaca (24,6 %), Moratalaz (23,2 %).
 
 ## Ranking de estaciones
 
@@ -36,13 +34,13 @@ Población que vive a menos de 250 m andando de cada estación (una persona pued
 
 | Estación | Distrito | < 250 m | 250–500 m |
 |---|---|---:|---:|
-| 53 - Metro Lavapiés | Centro | 10.083 | 20.383 |
-| 79 - Metro Menéndez Pelayo | Retiro | 8.439 | 16.635 |
-| 475 - Aurora Boreal - Minerva | Vicálvaro | 8.384 | 8.072 |
-| 226 - Sierra Toledana - Camino de Valderribas | Puente de Vallecas | 8.026 | 16.873 |
-| 163 - Metro Acacias | Arganzuela | 7.272 | 12.686 |
+| 53 - Metro Lavapiés | Centro | 9.871 | 20.103 |
+| 79 - Metro Menéndez Pelayo | Retiro | 7.907 | 16.739 |
+| 178 - Junta Municipal Distrito Retiro | Retiro | 7.612 | 15.477 |
+| 226 - Sierra Toledana - Camino de Valderribas | Puente de Vallecas | 7.435 | 15.902 |
+| 175 - Jaime el Conquistador - Divino Vallés | Arganzuela | 7.020 | 16.076 |
 
-Mediana: 2.429 personas a < 250 m por estación. 60 estaciones no tienen población residente a < 250 m (43 tampoco a < 500 m).
+Mediana: 2.095 personas a < 250 m por estación. 63 estaciones no tienen población residente a < 250 m (43 tampoco a < 500 m).
 
 ## Ampliación óptima
 
@@ -50,14 +48,14 @@ Selección secuencial de 1.000 estaciones nuevas (58.623 candidatos), maximizand
 
 | Estaciones nuevas | Verde | Amarillo | Rojo |
 |---:|---:|---:|---:|
-| 0 | 44,1 % | 45,7 % | 10,2 % |
-| 50 | 51,2 % | 42,6 % | 6,1 % |
-| 100 | 57,3 % | 38,1 % | 4,6 % |
-| 250 | 71,1 % | 27,0 % | 2,0 % |
-| 500 | 85,1 % | 14,0 % | 0,9 % |
-| 1.000 | 96,2 % | 3,7 % | 0,1 % |
+| 0 | 40,3 % | 48,0 % | 11,7 % |
+| 50 | 46,7 % | 46,3 % | 7,0 % |
+| 100 | 52,6 % | 42,2 % | 5,2 % |
+| 250 | 66,4 % | 31,2 % | 2,4 % |
+| 500 | 81,2 % | 17,9 % | 0,9 % |
+| 1.000 | 94,7 % | 5,1 % | 0,2 % |
 
-Las cinco primeras: Usera · San Fermín (ganancia 14.417), Hortaleza · Valdefuentes (12.340), Villaverde · San Cristóbal (10.694), Puente de Vallecas · Palomeras Bajas (10.175), Villaverde · Ángeles (10.066).
+Las cinco primeras: Usera · San Fermín (ganancia 14.122), Hortaleza · Valdefuentes (12.641), Villaverde · Ángeles (10.973), Fuencarral-El Pardo · Peñagrande (10.004), Villaverde · San Cristóbal (9.987).
 
 ## Validaciones
 
